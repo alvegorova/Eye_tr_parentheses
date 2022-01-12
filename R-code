@@ -1,0 +1,449 @@
+rm(list = ls())
+install.packages(c("tidyverse","writexl"))
+install.packages("ggplot2")
+#require(ggplot2)
+#require(dplyr)
+require(tidyr)
+require(tidyverse)
+library(writexl) #for exporting final excel
+
+#Setting working directory
+setwd("~/Documents/Data_Analysis/Eye-tracking_2021/")
+
+###METRICS DATASET
+Metrics = read.table(file = 'eye-tracking-main Metrics 12-15-21.tsv', sep = '\t', header = TRUE)
+
+##Getting separate column with participants' IDs
+Metrics <- Metrics %>% separate (Participant, c("Word", "ParticipantID")) 
+
+#Fixing the fact that some ParticipantIDs did not have spaces, thus did not split in previous row
+unique(Metrics$Word[is.na(Metrics$ParticipantID)]) #look for cases
+Metrics$ParticipantID <- ifelse (Metrics$Word == "Participant12", 12, 
+                                 ifelse (Metrics$Word == "Participant13", 13,
+                                         ifelse (Metrics$Word == "Participant23", 23, Metrics$ParticipantID)))
+nrow(is.na(Metrics$ParticipantID)) #check that all rows have IDs
+
+##Deleting extra columns
+Metrics <- Metrics %>% select(-Recording, -Word, -Timeline, -Interval) 
+
+##Creating variable with problem numbers
+#Checking current TOIs names
+unique(Metrics$TOI)
+#Changing TOIs names to problem numbers
+Metrics <- Metrics %>% mutate (TOI = ifelse (TOI == "No parentheses-center 1", 9,
+                     ifelse (TOI == "No parentheses-center 2", 10,
+                     ifelse (TOI == "No parentheses-center 3", 11,
+                     ifelse (TOI == "No parentheses-center 4", 12,
+                        ifelse (TOI == "No parentheses-left 1 (1)", 1,
+                        ifelse (TOI == "No parentheses-left 2 (1)", 2,
+                        ifelse (TOI == "No parentheses-left 3", 3,
+                        ifelse (TOI == "No parentheses-left 4 (1)", 4,
+                           ifelse (TOI == "No parentheses-right 1", 17,
+                           ifelse (TOI == "No parentheses-right 2", 18,
+                           ifelse (TOI == "No parentheses-right 3", 19,
+                           ifelse (TOI == "No parentheses-right 4", 20,
+                              ifelse (TOI == "Parentheses-center 1", 13,
+                              ifelse (TOI == "Parentheses-center 2", 14,
+                              ifelse (TOI == "Parentheses-center 3", 15,
+                              ifelse (TOI == "Parentheses-center 4", 16,
+                                 ifelse (TOI == "Parentheses-left 1", 5,
+                                 ifelse (TOI == "Parentheses-left 2", 6,
+                                 ifelse (TOI == "Parentheses-left 3", 7,
+                                 ifelse (TOI == "Parentheses-left 4", 8,
+                                    ifelse (TOI == "Parentheses-right 1", 21,
+                                    ifelse (TOI == "Parentheses-right 2", 22,
+                                    ifelse (TOI == "Parentheses-right 3", 23,
+                                    ifelse (TOI == "Parentheses-right 4", 24, NA)))))))))))))))))))))))))
+
+
+
+nrow(is.na(Metrics$TOI)) #checking for mistakes
+#Changing variable name
+names(Metrics)[names(Metrics) == 'TOI'] <- 'Problem_number'
+
+###RESPONSES DATASET
+Responses = read.csv(file = 'Responses.csv', header = TRUE)
+
+##Deleting data from pilot tests
+Responses <- Responses [c(9:40),] 
+
+##Getting separate column with participants' IDs
+Responses <- Responses %>% separate (Participant.ID, c("Word", "ParticipantID")) 
+#Fixing the fact that some ParticipantIDs did not have word "Participant", thus did not split in previous row correctly
+Responses$ParticipantID <- ifelse(is.na (Responses$ParticipantID), Responses$Word, Responses$ParticipantID) 
+
+##Deleting extra columns
+Responses <- Responses %>% select(-Word, -Training.Question.1..7.8.4.2., -Training.Question.2..6.3.2.1., -Training.Question.3..7.2.5.3.) 
+
+##Move columns to rows to match data in Metrics dataset
+Responses <- Responses %>% gather (Problem, Response, Question.1..6..4.4..1.:Question.24..6.2.8.4.)
+
+#Editing column with problem numbers
+unique(Responses$Problem)
+Responses <- Responses %>% mutate (Problem = ifelse (Problem == "Question.1..6..4.4..1.", 13,
+                   ifelse (Problem == "Question.2..4.1..8.4..", 21,
+                     ifelse (Problem == "Question.3..7.5.5.2.", 20,
+                       ifelse (Problem == "Question.4..5.2.2.3.", 12,
+                         ifelse (Problem == "Question.5...2.3..4.3.", 7,
+                           ifelse (Problem == "Question.6..8..5.1..4.", 14,
+                             ifelse (Problem == "Question.7..5.2.7.6.", 4,
+                               ifelse (Problem == "Question.8..8.3.3.4.", 10,
+                                 ifelse (Problem == "Question.9..6.8.2.1.", 9,
+                                   ifelse (Problem == "Question.10...8.4..5.1.", 5,
+                                     ifelse (Problem == "Question.11..5.6..5.2..", 24,
+                                       ifelse (Problem == "Question.12..7..3.2..6.", 16,
+                                         ifelse (Problem == "Question.13..6.4..3.1..", 22,
+                                           ifelse (Problem == "Question.14..8.4.6.1.", 1,
+                                             ifelse (Problem == "Question.15..5.2.2.3.", 19,
+                                               ifelse (Problem == "Question.16..7.5.1.6.", 12,
+                                                 ifelse (Problem == "Question.17..2.3.5.3.", 3,
+                                                   ifelse (Problem == "Question.18..3.1.8.4.", 2,
+                                                     ifelse (Problem == "Question.19..8.5.3.1.", 18,
+                                                       ifelse (Problem == "Question.20..5..1.3..3.", 15,
+                                                         ifelse (Problem == "Question.21..3.3..2.3..", 23,
+                                                           ifelse (Problem == "Question.22...3.1..7.4.", 6,
+                                                             ifelse (Problem == "Question.23...5.2..6.6.", 8,
+                                                               ifelse (Problem == "Question.24..6.2.8.4.", 17, 0)))))))))))))))))))))))))
+names(Responses)[names(Responses) == 'Problem'] <- 'Problem_number'
+
+#Deleting asterisk from the responses column and convert the column to numeric
+unique(Responses$Response)
+Responses$Response <- gsub( "\\*", "", Responses$Response) %>% as.numeric(Responses$Response)
+
+##FINAL DATASET
+Dataset <- merge (Responses, Metrics, by = c("ParticipantID", 'Problem_number'))
+
+##Cresting variable with correct responses
+Dataset <- Dataset %>% mutate (Correct_response = ifelse (Problem_number == 13, 8,
+                              ifelse (Problem_number == 21, 7,
+                                ifelse(Problem_number == 20, 12,
+                                  ifelse (Problem_number == 11, 12,
+                                    ifelse (Problem_number == 7, 13,
+                                      ifelse (Problem_number == 14, 9 ,
+                                        ifelse (Problem_number == 4, 11,
+                                          ifelse (Problem_number == 10, 5,
+                                            ifelse (Problem_number == 9, 11,
+                                              ifelse (Problem_number == 5, 8,
+                                                ifelse (Problem_number == 24, 9,
+                                                  ifelse (Problem_number == 16, 7,
+                                                    ifelse (Problem_number == 22, 5,
+                                                      ifelse (Problem_number == 1, 9,
+                                                        ifelse (Problem_number == 19, 13,
+                                                          ifelse (Problem_number == 12, 6,
+                                                            ifelse (Problem_number == 3, 14,
+                                                              ifelse (Problem_number == 2, 7,
+                                                                ifelse (Problem_number == 18, 6,
+                                                                  ifelse (Problem_number == 15, 11,
+                                                                    ifelse (Problem_number == 23, 12,
+                                                                      ifelse (Problem_number == 6, 6,
+                                                                        ifelse (Problem_number == 8, 10,
+                                                                          ifelse (Problem_number == 17, 10, NA)))))))))))))))))))))))))
+nrow (is.na(Dataset$Correct_response)) #checking mistakes
+
+##Creating binary variable with correctness of responses
+Dataset <- Dataset %>% mutate (Correct_or_not = ifelse (Response == Correct_response, "Yes", "No"))
+Dataset$Correct_or_not <- as.factor (Dataset$Correct_or_not)
+
+##Creating binary variable with higher-order operator to the left (for our first hypothesis)
+Dataset <- Dataset %>% mutate (HOO_left = ifelse (HOO == "Left", "Yes", "No"))
+Dataset$HOO_left <- as.factor (Dataset$HOO_left)
+
+##Creating binary variable 
+#with higher-order operator to the left and with parentheses (for our third hypothesis)
+Dataset <- Dataset %>% mutate (HOO_left_parentheses = ifelse (Parentheses == "Yes" & HOO == "Left", "Yes", "No"))
+Dataset$HOO_left_parentheses <- as.factor (Dataset$HOO_left_parentheses)
+
+##Changing order of columns
+names(Dataset)
+Dataset <- Dataset %>% relocate (Correct_response, .after = Response) %>% 
+  relocate (Timestamp, .before = ParticipantID) %>%
+  relocate (Notes, .after = Total_duration_of_Visit.Operator.LO2) %>%
+  relocate (Correct_or_not, .after = Correct_response) %>%
+  relocate (HOO_left, .after = HOO) %>%
+  relocate (HOO_left_parentheses, .after = HOO_left)
+
+View(Dataset)
+
+##Cleaning variables' names and types
+str(Dataset)
+names(Dataset)[names(Dataset) == 'Brackets'] <- 'Parentheses'
+Dataset$Parentheses <- as.factor(Dataset$Parentheses)
+Dataset$HOO <- as.factor(Dataset$HOO)
+Dataset$Media <- as.factor(Dataset$Media)
+Dataset$ParticipantID <- as.factor(Dataset$ParticipantID)
+Dataset$Problem_number <- as.integer(Dataset$Problem_number )
+Dataset$Response <- as.integer(Dataset$Response )
+Dataset$Correct_response <- as.integer(Dataset$Correct_response )
+
+#Exporting final dataset into excel 
+write_xlsx(Dataset,"~/Documents/Data_Analysis/Eye-tracking_2021/Final_dataset.xlsx")
+
+####DESCRIPTIVE STATISTICS
+#Checking how many responses are correct
+sum (Dataset$Correct_or_not == "Yes") / nrow(Dataset)  #percentage
+plot(Dataset$Correct_or_not)
+plot(Dataset$Correct_or_not ~ Dataset$HOO_left)
+
+#Ploting accuracy in different states (with/without parentheses and HOO in left/center/right)
+ggplot(Dataset, aes(x = HOO, fill = mean(Correct_or_not)))+
+  geom_bar(
+    aes(fill = No_fixation),
+    position = position_dodge(0.9)
+  )+
+  facet_wrap(~ Parentheses)
+
+#Checking normality of "Time to first fixation on operator" variable
+shapiro.test (Dataset$Time_to_first_fixation.Operator.HO)
+plot(Dataset$Time_to_first_fixation.Operator.HO)
+
+####MAIN HYPOTHESES
+
+##FIRST HYPOTHESIS - Performance (Correctness)
+table (Correct_or_not=Dataset$Correct_or_not, HOO_left=Dataset$HOO_left)
+chisq.test(Dataset$Correct_or_not, Dataset$HOO_left, correct=FALSE)
+
+##FIRST HYPOTHESIS - Time to first fixation
+fitRegLength1 <- glm(formula = HOO_left ~ Time_to_first_fixation.Operator.HO , family = "binomial", na.action = "na.exclude", data = Dataset)
+summary(fitRegLength1)
+
+#McFadden's Pseudo R^2
+fitRegLength1_ll.null <- fitRegLength1$null.deviance/-2
+fitRegLength1_ll.proposed <- fitRegLength1$deviance/-2
+fitRegLength1_Rsq <- (fitRegLength1_ll.null - fitRegLength1_ll.proposed) / fitRegLength1_ll.null
+fitRegLength1_Rsq
+#p-value
+fitRegLength1_p_value <- 1 - pchisq((fitRegLength1$null.deviance - fitRegLength1$deviance), df=1)
+fitRegLength1_p_value
+
+#plot logistic regression
+Dataset %>%
+  mutate(prob = ifelse(HOO_left == "Yes", 1, 0)) %>%
+  ggplot(aes(Time_to_first_fixation.Operator.HO, prob)) +
+  geom_point(alpha = 0.2) +
+  geom_smooth(method = "glm", method.args = list(family = "binomial"), colour = "black") +
+  labs(
+    x = "Time_to_first_fixation_on_operator",
+    y = "Probablity that HOO_left",
+  )+
+  theme_grey(base_size = 18)
+
+## SECOND HYPOTHESIS - Performance (Correctness)
+table (Correct_or_not=Dataset$Correct_or_not, Parentheses=Dataset$Parentheses)
+chisq.test(Dataset$Correct_or_not, Dataset$Parentheses, correct=FALSE)
+
+## SECOND HYPOTHESIS - Time to first fixation
+fitRegLength2 <- glm(formula = Parentheses ~ Time_to_first_fixation.Operator.HO , family = "binomial", na.action = "na.exclude", data = Dataset)
+summary(fitRegLength2)
+
+#McFadden's Pseudo R^2
+fitRegLength2_ll.null <- fitRegLength2$null.deviance/-2
+fitRegLength2_ll.proposed <- fitRegLength2$deviance/-2
+fitRegLength2_Rsq <- (fitRegLength2_ll.null - fitRegLength2_ll.proposed) / fitRegLength2_ll.null
+fitRegLength2_Rsq
+#p-value
+fitRegLength2_p_value <- 1 - pchisq((fitRegLength2$null.deviance - fitRegLength2$deviance), df=1)
+fitRegLength2_p_value
+
+##THIRD HYPOTHESIS - Performance (Correctness)
+table (Correct_or_not=Dataset$Correct_or_not, HOO_left_parentheses=Dataset$HOO_left_parentheses)
+chisq.test(Dataset$Correct_or_not, Dataset$HOO_left_parentheses, correct=FALSE)
+
+##THIRD HYPOTHESIS - Time to first fixation
+fitRegLength3 <- glm(formula = HOO_left_parentheses ~ Time_to_first_fixation.Operator.HO , family = "binomial", na.action = "na.exclude", data = Dataset)
+summary(fitRegLength3)
+
+#McFadden's Pseudo R^2
+fitRegLength3_ll.null <- fitRegLength3$null.deviance/-2
+fitRegLength3_ll.proposed <- fitRegLength3$deviance/-2
+fitRegLength3_Rsq <- (fitRegLength3_ll.null - fitRegLength3_ll.proposed) / fitRegLength3_ll.null
+fitRegLength3_Rsq
+#p-value
+fitRegLength3_p_value <- 1 - pchisq((fitRegLength3$null.deviance - fitRegLength3$deviance), df=1)
+fitRegLength3_p_value
+
+#plot logistic regression
+Dataset %>%
+  mutate(prob = ifelse(HOO_left_parentheses == "Yes", 1, 0)) %>%
+  ggplot(aes(Time_to_first_fixation.Operator.HO, prob)) +
+  geom_point(alpha = 0.2) +
+  geom_smooth(method = "glm", method.args = list(family = "binomial"), colour = "black") +
+  labs(
+    x = "Time_to_first_fixation_on_operator",
+    y = "Probablity that HOO_left_parentheses",
+  )+
+  theme_grey(base_size = 18)
+
+###ADDITIONAL HYPOTHESES: WITH MISSED FIXATIONS
+
+##Creating binary variables
+
+#No fixation anywhere
+Dataset <- Dataset %>% mutate (No_fixation = ifelse (is.na(Time_to_first_fixation.Digit.First) | is.na(Time_to_first_fixation.Digit.Second) | 
+                                                       is.na(Time_to_first_fixation.Digit.Third) | is.na(Time_to_first_fixation.Digit.Fourth) |
+                                                       is.na(Time_to_first_fixation.Operator.HO) | is.na(Time_to_first_fixation.Operator.LO1) |
+                                                       is.na(Time_to_first_fixation.Operator.LO2), "Yes", "No"))
+Dataset$No_fixation <- as.factor (Dataset$No_fixation)
+
+#No fixation on operator
+Dataset <- Dataset %>% mutate (No_fixation_on_operator = ifelse (is.na(Time_to_first_fixation.Operator.HO) | is.na(Time_to_first_fixation.Operator.LO1) |
+                                                                   is.na(Time_to_first_fixation.Operator.LO2), "Yes", "No"))
+Dataset$No_fixation_on_operator <- as.factor (Dataset$No_fixation_on_operator) 
+
+#No fixation on first or last (fourth) digit
+Dataset <- Dataset %>% mutate (No_fixation_first_last = ifelse (is.na(Time_to_first_fixation.Digit.First) | is.na(Time_to_first_fixation.Digit.Fourth), "Yes", "No"))
+Dataset$No_fixation_first_last <- as.factor (Dataset$No_fixation_first_last)
+
+#No fixation on 2 or 3 digit
+Dataset <- Dataset %>% mutate (No_fixation_2_3_digit = ifelse (is.na(Time_to_first_fixation.Digit.Second) | is.na(Time_to_first_fixation.Digit.Third), "Yes", "No"))
+Dataset$No_fixation_without_first_last <- as.factor (Dataset$No_fixation_without_first_last)
+
+#No fixation on other then first or last digit
+Dataset <- Dataset %>% mutate (No_fixation_without_first_last = ifelse (is.na(Time_to_first_fixation.Digit.Second) | is.na(Time_to_first_fixation.Digit.Third) |
+                                                                          is.na(Time_to_first_fixation.Operator.HO) | is.na(Time_to_first_fixation.Operator.LO1) |
+                                                                          is.na(Time_to_first_fixation.Operator.LO2), "Yes", "No"))
+Dataset$No_fixation_without_first_last <- as.factor (Dataset$No_fixation_without_first_last)
+
+
+##Creating numeric variables
+
+#Percentages of missed fixations on any digit/operator
+Dataset <- Dataset %>% mutate (No_fixation_percentage = 
+                                 ((Total_duration_of_Visit.Digit.First == 0) + (Total_duration_of_Visit.Digit.Second ==0) +
+                                    (Total_duration_of_Visit.Digit.Third == 0) + (Total_duration_of_Visit.Digit.Fourth ==0) +
+                                    (Total_duration_of_Visit.Operator.HO == 0) + (Total_duration_of_Visit.Operator.LO1 == 0) +
+                                    (Total_duration_of_Visit.Operator.LO2 == 0))/7)
+#Percentages of missed fixations on any digit/operator without first and last digit
+Dataset <- Dataset %>% mutate (No_fixation_without_first_last_percentage = 
+                                 ((Total_duration_of_Visit.Digit.Second ==0) + (Total_duration_of_Visit.Digit.Third == 0) +
+                                    (Total_duration_of_Visit.Operator.HO == 0) + (Total_duration_of_Visit.Operator.LO1 == 0) +
+                                    (Total_duration_of_Visit.Operator.LO2 == 0))/5)
+#Percentages of missed fixations on any operator
+Dataset <- Dataset %>% mutate (No_fixation_on_first_last_percentage = 
+                                 ((Total_duration_of_Visit.Digit.First == 0) + (Total_duration_of_Visit.Digit.Fourth == 0))/2)
+#Percentages of missed fixations on any operator
+Dataset <- Dataset %>% mutate (No_fixation_on_operator_percentage = 
+                                 ((Total_duration_of_Visit.Operator.HO == 0) + (Total_duration_of_Visit.Operator.LO1 == 0) +
+                                    (Total_duration_of_Visit.Operator.LO2 == 0))/3)
+
+
+##Descriptive statistics
+
+sum(Dataset$No_fixation == "Yes") / nrow(Dataset) #how much empty fixations
+sum(Dataset$No_fixation_on_operator == "Yes") / nrow(Dataset) #how much empty fixations on operator
+sum(Dataset$No_fixation_first_last == "Yes") / nrow(Dataset) #how much empty fixations on first or last digit
+sum(Dataset$No_fixation_without_first_last == "Yes") / nrow(Dataset) #how much empty fixations on 2 or 3 digit
+sum(Dataset$No_fixation_without_first_last == "Yes") / nrow(Dataset) #how much empty fixations on other then first or last digit
+
+#How much missed fixation in a particular condition HOO & Parentheses:: not a big difference
+Dataset %>% group_by (Parentheses, HOO) %>% summarise(average=mean(ifelse(No_fixation_2_3_digit == "Yes", 1, 0))) %>% ggplot(aes(HOO, average, group = 1)) + 
+  geom_point() + facet_wrap(~Parentheses) 
+Dataset %>% group_by (Parentheses, HOO) %>% summarise(average=mean(ifelse(No_fixation_on_operator == "Yes", 1, 0))) %>% ggplot(aes(HOO, average, group = 1)) + 
+  geom_point() + facet_wrap(~Parentheses) 
+Dataset %>% group_by (Parentheses, HOO) %>% summarise(average=mean(ifelse(No_fixation_without_first_last == "Yes", 1, 0))) %>% ggplot(aes(HOO, average, group = 1)) + 
+  geom_point() + facet_wrap(~Parentheses) 
+Dataset %>% group_by (Parentheses, HOO) %>% summarise(average=mean(ifelse(No_fixation_first_last == "Yes", 1, 0))) %>% ggplot(aes(HOO, average, group = 1)) + 
+  geom_point() + facet_wrap(~Parentheses) 
+
+#How frequently people do not look at first_last when parentheses present:: statistically not significant (all miss frequently)
+table (Dataset$Parentheses, Dataset$No_fixation_first_last)
+chisq.test(Dataset$Parentheses, Dataset$No_fixation_first_last, correct=FALSE)
+Dataset %>% group_by (Parentheses) %>% summarise(average=mean(ifelse(No_fixation_first_last == "Yes", 1, 0))) %>% ggplot(aes(Parentheses, average, group = 1)) + 
+  geom_point()
+
+#How frequently people do not look at without_first_last when parentheses present:: statistically more frequently
+table (Parentheses = Dataset$Parentheses, No_fixation_without_first_last= Dataset$No_fixation_without_first_last)
+chisq.test(Dataset$Parentheses, Dataset$No_fixation_without_first_last, correct=FALSE)
+Dataset %>% group_by (Parentheses) %>% summarise(average=mean(ifelse(No_fixation_without_first_last == "Yes", 1, 0))) %>% ggplot(aes(Parentheses, average, group = 1)) + 
+  geom_point()
+
+#How frequently people do not look at the operator when parentheses present:: statistically more frequently
+table (Dataset$Parentheses, Dataset$No_fixation_on_operator)
+chisq.test(Dataset$Parentheses, Dataset$No_fixation_on_operator, correct=FALSE)
+Dataset %>% group_by (Parentheses) %>% summarise(average=mean(ifelse(No_fixation_on_operator == "Yes", 1, 0))) %>% ggplot(aes(Parentheses, average, group = 1)) + 
+  geom_point()
+
+#How frequently people do not look at 2_3_digit when parentheses present:: statistically more frequently
+table (Dataset$Parentheses, Dataset$No_fixation_2_3_digit)
+chisq.test(Dataset$Parentheses, Dataset$No_fixation_2_3_digit, correct=FALSE)
+ Dataset %>% group_by (Parentheses) %>% summarise(average=mean(ifelse(No_fixation_2_3_digit == "Yes", 1, 0))) %>% ggplot(aes(Parentheses, average, group = 1)) + 
+  geom_point()
+
+#How frequently people do not look at 2_3_digit with diff HOO position
+#:: statistically more frequently miss 2-3 digit when HOO in the center (in all cases but with parentheses more frequently then without)
+#all cases
+table (HOO_position = Dataset$HOO, Missed_fixation_on_2_3_digit = Dataset$No_fixation_2_3_digit)
+chisq.test(Dataset$HOO, Dataset$No_fixation_2_3_digit, correct=FALSE)
+Dataset %>% group_by (HOO) %>% summarise(average=mean(ifelse(No_fixation_2_3_digit == "Yes", 1, 0))) %>% ggplot(aes(HOO, average, group = 1)) + 
+  geom_point() #plot without parentheses grouping
+Dataset %>% group_by (Parentheses, HOO) %>% summarise(average=mean(ifelse(No_fixation_2_3_digit == "Yes", 1, 0))) %>% ggplot(aes(HOO, average, group = 1)) + 
+  geom_point() + facet_wrap(~Parentheses) #plot with parentheses grouping
+#only without parentheses
+Without_parentheses <- Dataset %>% filter (Parentheses == "No")
+table (HOO_position = Without_parentheses$HOO, Missed_fixation_on_2_3_digit = Without_parentheses$No_fixation_2_3_digit)
+chisq.test(Without_parentheses$HOO, Without_parentheses$No_fixation_2_3_digit, correct=FALSE)
+Dataset %>% filter (Parentheses == "No") %>% group_by (HOO) %>% summarise(average=mean(ifelse(No_fixation_2_3_digit == "Yes", 1, 0))) %>% ggplot(aes(HOO, average, group = 1)) + 
+  geom_point()
+#only with parentheses
+With_parentheses <- Dataset %>% filter (Parentheses == "Yes")
+table (HOO_position = With_parentheses$HOO, Missed_fixation_on_2_3_digit = With_parentheses$No_fixation_2_3_digit)
+chisq.test(With_parentheses$HOO, With_parentheses$No_fixation_2_3_digit, correct=FALSE)
+Dataset %>% filter (Parentheses == "Yes") %>% group_by (HOO) %>% summarise(average=mean(ifelse(No_fixation_2_3_digit == "Yes", 1, 0))) %>% ggplot(aes(HOO, average, group = 1)) + 
+  geom_point()
+
+#Missed overall fixation in a particular condition HOO & Parentheses:: not a big difference
+Dataset %>% group_by (Parentheses, HOO) %>% summarise(average=mean(No_fixation_percentage))
+#on a plot
+Dataset %>% group_by (Parentheses, HOO) %>% summarise(average=mean(No_fixation_percentage)) %>% ggplot(aes(HOO, average, group = 1)) + 
+  geom_point() + facet_wrap(~Parentheses) 
+
+#How many missed fixations in different problem numbers (in earlier vs later problems):: significant but not a big correlation (1%)
+cor.test(Dataset$Problem_number, Dataset$No_fixation_percentage, method="pearson")
+Dataset %>% group_by (Problem_number) %>% summarise(average=mean(No_fixation_percentage))
+#on a plot
+Dataset %>% group_by (Problem_number) %>% summarise(average=mean(No_fixation_percentage)) %>% ggplot(aes(Problem_number, average, group = 1)) + 
+  geom_point()
+
+#How many missed fixation in different digits:: much more frequently do not fixate on first or last digit then third/fourth
+na.first.digit <- is.na(Dataset$Time_to_first_fixation.Digit.First)
+na.second.digit <- is.na(Dataset$Time_to_first_fixation.Digit.Second)
+na.third.digit <- is.na(Dataset$Time_to_first_fixation.Digit.Third)
+na.fourth.digit <- is.na(Dataset$Time_to_first_fixation.Digit.Fourth)
+
+mean (na.first.digit)
+mean (na.second.digit)
+mean (na.third.digit)
+mean (na.fourth.digit)
+
+#on a plot
+Dataset %>% group_by (Problem_number) %>% summarise(average=mean(No_fixation_percentage)) %>% ggplot(aes(Problem_number, average, group = 1)) + 
+  geom_point()
+
+#Does fixation absence associates with accuracy:: only significant when fixation missed on operator but even then has very small effect (0.01)
+fitRegLength1 <- glm(formula = Correct_or_not ~ No_fixation_on_operator_percentage, family = "binomial", data = Dataset)
+summary(fitRegLength1)
+#McFadden's Pseudo R^2
+fitRegLength1_ll.null <- fitRegLength1$null.deviance/-2
+fitRegLength1_ll.proposed <- fitRegLength1$deviance/-2
+fitRegLength1_Rsq <- (fitRegLength1_ll.null - fitRegLength1_ll.proposed) / fitRegLength1_ll.null
+fitRegLength1_Rsq
+#p-value
+fitRegLength1_p_value <- 1 - pchisq((fitRegLength1$null.deviance - fitRegLength1$deviance), df=1)
+fitRegLength1_p_value
+
+##ANOVA for association with Parentheses and HOO position
+#checking normality - why this line does not work?
+#Dataset %>% group_by (Parentheses, HOO) %>% shapiro.test (No_fixation_percentage)
+
+#:: when No_fixaxtion_percentage - p-value low for Parentheses but R2=0.01
+#:: when No_fixaxtion_percentage_without_first_last - p-value low even lower and R2=0.028 (for Parentheses)
+one.way.first_last <- aov(No_fixation_without_first_last_percentage ~ Parentheses * HOO, data = Dataset)
+summary(one.way.first_last)
+TukeyHSD(one.way.first_last)
+plot(TukeyHSD(one.way.first_last))
+summary(lm(No_fixation_without_first_last_percentage ~ Parentheses, data = Dataset))
+
+#:: when No_fixation_on_operator_percentage - p-value also low for HHleft but sum R2=0.023
+one.way.operator <- aov(No_fixation_on_operator_percentage ~ Parentheses * HOO, data = Dataset)
+summary(one.way.operator)
+TukeyHSD(one.way.operator) #:: statistical but small difference (diff 0.048) on Left-Center
+plot(TukeyHSD(one.way.operator))
